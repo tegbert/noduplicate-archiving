@@ -64,7 +64,8 @@ def get_file_md5( fnpath ):
         buf = fin.read( BUFSZ )
         if 0 == len(buf):
             break
-        m.update( buf )
+        else:
+            m.update( buf )
     hash = m.hexdigest()
     return hash
 
@@ -234,27 +235,27 @@ ACTION:
     <ActionToBePerformed - required>. May be one of the following (not
     case sensitive):
 
-        NONE: the default. No action taken.
+    NONE: the default. No action taken.
 
-        NEW: create a new backup repository to the path given in the -b
-            option, but do not back up anything. If the directory path
-            already exists, verify that it has the proper structure,
+    NEW: create a new backup repository to the path given in the -b
+        option, but do not back up anything. If the directory path
+        already exists, verify that it has the proper structure,
 
-        BACKUP: backup the directory provided with the -d option to the
-            backup repository designated with the -b option, into the
-            tree designated by the -r option. If the -r option is not
-            given, name it the same as the directory being backed up.
+    BACKUP: backup the directory provided with the -d option to the
+        backup repository designated with the -b option, into the
+        tree designated by the -r option. If the -r option is not
+        given, name it the same as the directory being backed up.
 
-        RESTORE: restore the directory in the -r option from the backup
-            repository designated by the -b option to the directory
-            designated by the -d option.
-            
-        CULL: **** NOTE: this action not yet implemented *****
-            cull out a backed up directory tree within the repository
-            as designated by the -r option and remove the backed up
-            files that are not pointed to by other trees within the
-            repository. If the -r option is not given, simply remove
-            the unreferenced files.
+    RESTORE: restore the directory in the -r option from the backup
+        repository designated by the -b option to the directory
+        designated by the -d option.
+        
+    CULL: **** NOTE: this action not yet implemented *****
+        cull out a backed up directory tree within the repository
+        as designated by the -r option and remove the backed up
+        files that are not pointed to by other trees within the
+        repository. If the -r option is not given, simply remove
+        the unreferenced files.
 """
     print msg % argd
     sys.exit(0)
