@@ -16,6 +16,9 @@
 ##    You should have received a copy of the GNU General Public License
 ##    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ##
+## Original author: Timothy P. Egbert
+## First written in a usable form: 2012-07-07.
+#
 import sys
 import os
 import getopt
