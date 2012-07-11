@@ -77,7 +77,7 @@ def action_new( argd ):
     archive_fpname = repopath + os.sep + FILE_ARCHIVE_NAME
     if os.path.exists( repopath ):
         if not os.path.exists( archive_fpname ):
-            raise Exception("'%s' does not appear to be a valid backup repository." % repopath)
+            raise Exception("'%s' does not appear to be a valid archive repository." % repopath)
     else:
         os.mkdir( repopath, DIRPERMS )
         os.mkdir( archive_fpname, DIRPERMS)
@@ -90,29 +90,29 @@ def action_new( argd ):
 
 def _get_and_normalize_paths( argd ):
     if None == argd['repopath']:
-        raise Exception('you must designate a backup repository path with the -b option.')
-    if None == argd['tobackpath']:
-        raise Exception('you must designate directory be to backed up with the -d option.')
+        raise Exception('you must designate an archive repository path with the -b option.')
+    if None == argd['toarchpath']:
+        raise Exception('you must designate directory be to archived with the -d option.')
     repopath = chomp_right( argd['repopath'] )
-    tobackpath = chomp_right( argd['tobackpath'] )
+    toarchpath = chomp_right( argd['toarchpath'] )
     repotree = argd['repotree']
     if None == repotree:
-        repotree = os.path.split(tobackpath)[1]
+        repotree = os.path.split(toarchpath)[1]
     else:
         repotree = chomp_right( repotree )
     repotree_fullpath = repopath + os.sep + repotree
-    return repopath, tobackpath, repotree, repotree_fullpath
+    return repopath, toarchpath, repotree, repotree_fullpath
 
-def action_backup( argd ):
-    repopath, tobackpath, repotree, repotree_fullpath = _get_and_normalize_paths( argd )
+def action_archive( argd ):
+    repopath, toarchpath, repotree, repotree_fullpath = _get_and_normalize_paths( argd )
     action_new( argd )
     if os.path.exists( repotree_fullpath ):
         raise Exception("repository tree directory '%s' already exists." % repotree)
-    base_dirpath, ll_dirs, ll_files = walk_dir( tobackpath )
+    base_dirpath, ll_dirs, ll_files = walk_dir( toarchpath )
     ## create repository tree
     len_base_dirpath = len(base_dirpath) + 1
-    for isLink, linkref, backup_dirpath in ll_dirs:
-        repo_dirpath = repopath + os.sep + repotree + os.sep + backup_dirpath[len_base_dirpath:]
+    for isLink, linkref, archive_dirpath in ll_dirs:
+        repo_dirpath = repopath + os.sep + repotree + os.sep + archive_dirpath[len_base_dirpath:]
         if True == isLink:
             if False == argd['ignore_symlinks']:
                 os.symlink(linkref, repo_dirpath)
@@ -122,46 +122,46 @@ def action_backup( argd ):
             else:
                 raise Exception("repository directory '%s' already exists." % repo_dirpath)
     ## copy files to tree and archive
-    for isLink, linkref, tobackupfnpath in ll_files:
-        repo_fnpath = repopath  + os.sep + repotree + os.sep + tobackupfnpath[len_base_dirpath:]
+    for isLink, linkref, toarchivefnpath in ll_files:
+        repo_fnpath = repopath  + os.sep + repotree + os.sep + toarchivefnpath[len_base_dirpath:]
         repo_fpath, fname = os.path.split( repo_fnpath )
         if True == isLink:
             if False == argd['ignore_symlinks']:
                 os.symlink(linkref, repo_fnpath)
         else:
             try:
-                hash = get_file_md5( tobackupfnpath )
+                hash = get_file_md5( toarchivefnpath )
             except IOError, ioe:
-                print "bad file encountered and skipped: '%s'" % tobackupfnpath
+                print "bad file encountered and skipped: '%s'" % toarchivefnpath
                 continue
             archive_fnpath = repopath + os.sep + FILE_ARCHIVE_NAME
             archive_fnpath += os.sep + hash[0] + os.sep + hash[1] + os.sep + hash
             if not os.path.exists( archive_fnpath ):
-                shutil.copy(tobackupfnpath, archive_fnpath)
-            back_fnpath = repo_fpath + os.sep + hash + "_" + fname
-            os.link(archive_fnpath, back_fnpath)
+                shutil.copy(toarchivefnpath, archive_fnpath)
+            archive_fnpath = repo_fpath + os.sep + hash + "_" + fname
+            os.link(archive_fnpath, archive_fnpath)
 
 def action_restore( argd ):
     repopath, restorepath, repotree, repotree_fullpath = _get_and_normalize_paths( argd )
     if os.path.exists(restorepath):
         raise Exception("restore path '%s' already exists." % restorepath)
     if not os.path.exists(repopath):
-        raise Exception("backup repository '%s' does not exist." % repopath)
+        raise Exception("archive repository '%s' does not exist." % repopath)
     
     ## restore directory tree
     os.mkdir( restorepath, DIRPERMS )
     nodups_prefix = repopath + os.sep + FILE_ARCHIVE_NAME
     base_dirpath, ll_dirs, ll_files = walk_dir( repotree_fullpath )
     precut = len(repotree_fullpath) + 1
-    for isLink, linkref, backup_dirpath in ll_dirs:
-        restoree = restorepath + os.sep + backup_dirpath[precut:]
+    for isLink, linkref, archive_dirpath in ll_dirs:
+        restoree = restorepath + os.sep + archive_dirpath[precut:]
         os.makedirs(restoree, DIRPERMS)
 
     ## restore files
     prefix_repo = repopath + os.sep + repotree
     cut_fnpath = len(prefix_repo) + 1     
-    for isLink, linkref, backup_fnpath in ll_files:
-        intree_path, fname_with_hash = os.path.split( backup_fnpath[cut_fnpath:] )
+    for isLink, linkref, archive_fnpath in ll_files:
+        intree_path, fname_with_hash = os.path.split( archive_fnpath[cut_fnpath:] )
         if True == isLink:
             pass ## do links later
         else:
@@ -177,10 +177,8 @@ def action_restore( argd ):
 
 def run( argd ):
     action = argd['action']
-    if 'NEW' == action:
-        action_new( argd )
-    elif 'BACKUP' == action:
-        action_backup( argd )
+    if 'ARCHIVE' == action:
+        action_archive( argd )
     elif 'RESTORE' == action:
         action_restore( argd )
     elif 'CULL' == action:
@@ -190,36 +188,36 @@ def run( argd ):
 
 def usage( argd ):
     msg = """
-USE: effback OPTIONS ACTION
+USE: nodup_archiving OPTIONS ACTION
 
 Version 0.21 (2012-07-08)
 
-Synopsis: an efficient and simple backup solution for directory trees
-in which there may be file duplication.  More than one directory tree
-may be backed up to a single repository, which may result in greater
-efficiencies, in that duplicate files all point to the same backup file
-within the repository.
+Synopsis: an efficient and simple backup/archiving solution for directory
+trees in which there may be file duplication.  More than one directory
+tree may be archived to a single repository, which may result in greater
+efficiencies, in that duplicate files all point to the same archived file
+within the repository by means of hard links.
 
-NOTE: this program is not smart enough to do incremental backups and
-restores, so directory trees will either be backed up in total or
+NOTE: this program is not smart enough to do incremental archiving and
+restores, so directory trees will either be archived in total or
 restored in total.
 
 OPTIONS:
 
-    -b <BackupRepositoryPath>
-        Designate the backup directory repository into which files to be
-        backed up will be copied and into which the directory structures
-        will be created that mimic the directory being backed up. Create
-        it if it does not exist. Default is "%(repopath)s". If the directory
-        already exists, verify that it has the correct tree structure.
+    -b <RepositoryPath>
+        Designate the path of the repository into which files to be
+        archived will be copied and into which the directory structures
+        of the original directory trees will be created to mimic the
+        directory being archived.
 
-    -d <DirThatIsBackedUp>
-        The path to a directory to be backed up, or the path to where
-        the designated restore directory is being restored.
+    -d <DirThatIsToBeArchived>
+        The path to a directory to be archived, or the path to where
+        the designated directory structure to be restored is being
+        restored.
 
-    -r <DirNameInBackupRepository>
-        The name of the directory within the backup repository to which
-        the directory tree being backed up will be saved, or the name of
+    -r <DirNameInArchiveRepository>
+        The name of the directory within the archive repository into which
+        the directory tree being archived will be saved, or the name of
         the directory tree that is going to the restored.
 
     -S
@@ -228,7 +226,7 @@ OPTIONS:
 
     -H  
         ***** NOTE: this option is not yet implemented *****
-        During a RESTORE of a backup up directory tree, duplicate files
+        During a RESTORE of an archived directory tree, duplicate files
         within the repository will be restored as hard links after the
         initial first copy is restored. This option is ignored in all
         actions other than RESTORE.
@@ -240,22 +238,19 @@ ACTION:
 
     NONE: the default. No action taken.
 
-    NEW: create a new backup repository to the path given in the -b
-        option, but do not back up anything. If the directory path
-        already exists, verify that it has the proper structure,
-
-    BACKUP: backup the directory provided with the -d option to the
-        backup repository designated with the -b option, into the
+    ARCHIVE: archive the directory provided with the -d option to the
+        archive repository designated with the -b option, into the
         tree designated by the -r option. If the -r option is not
-        given, name it the same as the directory being backed up.
+        given, the archive directory name will be the same as the
+        directory being archived.
 
-    RESTORE: restore the directory in the -r option from the backup
-        repository designated by the -b option to the directory
-        designated by the -d option.
+    RESTORE: restore the archived directory structure designated with
+        the -r option from the archive repository designated by the -b
+        option to the directory designated by the -d option.
         
     CULL: **** NOTE: this action not yet implemented *****
-        cull out a backed up directory tree within the repository
-        as designated by the -r option and remove the backed up
+        cull out a archived directory tree within the repository
+        as designated by the -r option and remove the archived
         files that are not pointed to by other trees within the
         repository. If the -r option is not given, simply remove
         the unreferenced files.
@@ -274,7 +269,7 @@ def main():
     argd = {
         'action'              : None,
         'repopath'            : None,
-        'tobackpath'          : None,
+        'toarchpath'          : None,
         'repotree'            : None,
         'ignore_symlinks'     : True,
         'hardlinkdups'        : False,
@@ -286,7 +281,7 @@ def main():
         elif o == "-r":
             argd['repotree'] = v
         elif o == "-d":
-            argd['tobackpath'] = v
+            argd['toarchpath'] = v
         elif o == "-S":
             argd['ignore_symlinks'] = False
         elif o == "-S":
