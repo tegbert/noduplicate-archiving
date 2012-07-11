@@ -37,7 +37,7 @@ Synopsis: an efficient and simple backup/archiving solution for directory
 trees in which there may be file duplication.  More than one directory
 tree may be archived to a single repository, which may result in greater
 efficiencies, in that duplicate files all point to the same archived file
-within the repository by means of hard links.
+within the repository by means of file name references.
 
 NOTE: this program is not smart enough to do incremental archiving and
 restores, so directory trees will either be archived in total or
