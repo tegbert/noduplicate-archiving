@@ -25,14 +25,21 @@ import getopt
 import hashlib
 import shutil
 
-FILE_ARCHIVE_NAME = 'nodups_file_archive'
-BUFSZ = 1024*1024
+FILE_ARCHIVE_NAME = '_nodups_file_pool_'
+BUFSZ = 10*1024*1024
 DIRPERMS = 0775
+FILEPERMS = 0664
 
 def chomp_right( s ):
     while os.sep == s[-1]:
         s = s[:-1]
     return s
+
+def gzip_file():
+    pass
+
+def gunzip_file():
+    pass
 
 def walk_dir( base_dirpath ):
     base_dirpath = chomp_right( base_dirpath )
@@ -72,27 +79,11 @@ def get_file_md5( fnpath ):
     hash = m.hexdigest()
     return hash
 
-def action_new( argd ):
-    repopath = chomp_right( argd['repopath'] )
-    archive_fpname = repopath + os.sep + FILE_ARCHIVE_NAME
-    if os.path.exists( repopath ):
-        if not os.path.exists( archive_fpname ):
-            raise Exception("'%s' does not appear to be a valid archive repository." % repopath)
-    else:
-        os.mkdir( repopath, DIRPERMS )
-        os.mkdir( archive_fpname, DIRPERMS)
-        for ch1 in '0123456789abcdef':
-            p1 = archive_fpname + os.sep + ch1
-            os.mkdir( p1, DIRPERMS )
-            for ch2 in '0123456789abcdef':
-                p2 = p1 + os.sep + ch2
-                os.mkdir( p2, DIRPERMS )
-
-def _get_and_normalize_paths( argd ):
+def get_and_normalize_paths( argd ):
     if None == argd['repopath']:
         raise Exception('you must designate an archive repository path with the -b option.')
     if None == argd['toarchpath']:
-        raise Exception('you must designate directory be to archived with the -d option.')
+        raise Exception('you must designate directory be to archived, or where to restore or copy an archive, with the -d option.')
     repopath = chomp_right( argd['repopath'] )
     toarchpath = chomp_right( argd['toarchpath'] )
     repotree = argd['repotree']
@@ -103,84 +94,127 @@ def _get_and_normalize_paths( argd ):
     repotree_fullpath = repopath + os.sep + repotree
     return repopath, toarchpath, repotree, repotree_fullpath
 
-def action_archive( argd ):
-    repopath, toarchpath, repotree, repotree_fullpath = _get_and_normalize_paths( argd )
-    action_new( argd )
-    if os.path.exists( repotree_fullpath ):
-        raise Exception("repository tree directory '%s' already exists." % repotree)
-    base_dirpath, ll_dirs, ll_files = walk_dir( toarchpath )
-    ## create repository tree
-    len_base_dirpath = len(base_dirpath) + 1
-    for isLink, linkref, archive_dirpath in ll_dirs:
-        repo_dirpath = repopath + os.sep + repotree + os.sep + archive_dirpath[len_base_dirpath:]
-        if True == isLink:
-            if False == argd['ignore_symlinks']:
-                os.symlink(linkref, repo_dirpath)
-        else:
-            if not os.path.exists(repo_dirpath):
-                os.makedirs(repo_dirpath, DIRPERMS)
-            else:
-                raise Exception("repository directory '%s' already exists." % repo_dirpath)
-    ## copy files to tree and archive
-    for isLink, linkref, toarchivefnpath in ll_files:
-        repo_fnpath = repopath  + os.sep + repotree + os.sep + toarchivefnpath[len_base_dirpath:]
-        repo_fpath, fname = os.path.split( repo_fnpath )
-        if True == isLink:
-            if False == argd['ignore_symlinks']:
-                os.symlink(linkref, repo_fnpath)
-        else:
-            try:
-                hash = get_file_md5( toarchivefnpath )
-            except IOError, ioe:
-                print "bad file encountered and skipped: '%s'" % toarchivefnpath
-                continue
-            archive_fnpath = repopath + os.sep + FILE_ARCHIVE_NAME
-            archive_fnpath += os.sep + hash[0] + os.sep + hash[1] + os.sep + hash
-            if not os.path.exists( archive_fnpath ):
-                shutil.copy(toarchivefnpath, archive_fnpath)
-            archive_fnpath = repo_fpath + os.sep + hash + "_" + fname
-            os.link(archive_fnpath, archive_fnpath)
+class Actions:
 
-def action_restore( argd ):
-    repopath, restorepath, repotree, repotree_fullpath = _get_and_normalize_paths( argd )
-    if os.path.exists(restorepath):
-        raise Exception("restore path '%s' already exists." % restorepath)
-    if not os.path.exists(repopath):
-        raise Exception("archive repository '%s' does not exist." % repopath)
+    def __init__(self, argd):
+        self.argd = argd
+
+    def action_new( self ):
+        repopath = chomp_right( self.argd['repopath'] )
+        archive_fpname = repopath + os.sep + FILE_ARCHIVE_NAME
+        if os.path.exists( repopath ):
+            if not os.path.exists( archive_fpname ):
+                raise Exception("'%s' does not appear to be a valid archive repository." % repopath)
+        else:
+            os.mkdir( repopath, DIRPERMS )
+            os.mkdir( archive_fpname, DIRPERMS)
+            for ch1 in '0123456789abcdef':
+                p1 = archive_fpname + os.sep + ch1
+                os.mkdir( p1, DIRPERMS )
+                for ch2 in '0123456789abcdef':
+                    p2 = p1 + os.sep + ch2
+                    os.mkdir( p2, DIRPERMS )
     
-    ## restore directory tree
-    os.mkdir( restorepath, DIRPERMS )
-    nodups_prefix = repopath + os.sep + FILE_ARCHIVE_NAME
-    base_dirpath, ll_dirs, ll_files = walk_dir( repotree_fullpath )
-    precut = len(repotree_fullpath) + 1
-    for isLink, linkref, archive_dirpath in ll_dirs:
-        restoree = restorepath + os.sep + archive_dirpath[precut:]
-        os.makedirs(restoree, DIRPERMS)
-
-    ## restore files
-    prefix_repo = repopath + os.sep + repotree
-    cut_fnpath = len(prefix_repo) + 1     
-    for isLink, linkref, archive_fnpath in ll_files:
-        intree_path, fname_with_hash = os.path.split( archive_fnpath[cut_fnpath:] )
-        if True == isLink:
-            pass ## do links later
-        else:
-            hash = fname_with_hash[:32]
-            fname = fname_with_hash[33:]
-            repofnpath = repopath + os.sep + FILE_ARCHIVE_NAME + os.sep + hash[0] + os.sep + hash[1] + os.sep + hash
-            if '' == intree_path:
-                itp = ''
+    def action_archive( self ):
+        self.action_new()
+        repopath, toarchpath, repotree, repotree_fullpath = get_and_normalize_paths( self.argd )
+        if os.path.exists( repotree_fullpath ):
+            raise Exception("repository tree directory '%s' already exists." % repotree)
+        base_dirpath, ll_dirs, ll_files = walk_dir( toarchpath )
+        ## create repository tree
+        len_base_dirpath = len(base_dirpath) + 1
+        for isLink, linkref, archive_dirpath in ll_dirs:
+            repo_dirpath = repopath + os.sep + repotree + os.sep + archive_dirpath[len_base_dirpath:]
+            if True == isLink:
+                if False == self.argd['ignore_symlinks']:
+                    os.symlink(linkref, repo_dirpath)
             else:
-                itp = intree_path + os.sep
-            restorefnpath = restorepath + os.sep + itp + fname 
-            shutil.copy(repofnpath, restorefnpath)
-
+                if not os.path.exists(repo_dirpath):
+                    os.makedirs(repo_dirpath, DIRPERMS)
+                else:
+                    raise Exception("repository directory '%s' already exists." % repo_dirpath)
+        ## copy files to tree and archive
+        for isLink, linkref, toarchivefnpath in ll_files:
+            repo_fnpath = repopath  + os.sep + repotree + os.sep + toarchivefnpath[len_base_dirpath:]
+            repo_fpath, fname = os.path.split( repo_fnpath )
+            if True == isLink:
+                if False == self.argd['ignore_symlinks']:
+                    os.symlink(linkref, repo_fnpath)
+            else:
+                try:
+                    fhash = get_file_md5( toarchivefnpath )
+                except IOError, ioe:
+                    print "bad file encountered and skipped: '%s'" % toarchivefnpath
+                    continue
+                archive_fnpath = repopath + os.sep + FILE_ARCHIVE_NAME
+                archive_fnpath += os.sep + fhash[0] + os.sep + fhash[1] + os.sep + fhash
+                if not os.path.exists( archive_fnpath ):
+                    shutil.copy(toarchivefnpath, archive_fnpath)
+                archive_fnpath = repo_fpath + os.sep + fhash + "_" + fname
+                ##os.link(archive_fnpath, archive_fnpath) ## creates hard link, but copying the archive re-duplicates the files.
+                fout = open(archive_fnpath,'w') ## creates empty file with name pointing to md5sum of file in the pool 
+                fout.close()
+    
+    def action_restore( self ):
+        repopath, restorepath, repotree, repotree_fullpath = get_and_normalize_paths( self.argd )
+        if os.path.exists(restorepath):
+            raise Exception("restore path '%s' already exists." % restorepath)
+        if not os.path.exists(repopath):
+            raise Exception("archive repository '%s' does not exist." % repopath)
+        
+        ## restore directory tree
+        os.mkdir( restorepath, DIRPERMS )
+        nodups_prefix = repopath + os.sep + FILE_ARCHIVE_NAME
+        base_dirpath, ll_dirs, ll_files = walk_dir( repotree_fullpath )
+        precut = len(repotree_fullpath) + 1
+        for isLink, linkref, archive_dirpath in ll_dirs:
+            restoree = restorepath + os.sep + archive_dirpath[precut:]
+            os.makedirs(restoree, DIRPERMS)
+    
+        ## restore files
+        prefix_repo = repopath + os.sep + repotree
+        cut_fnpath = len(prefix_repo) + 1
+        for isLink, linkref, archive_fnpath in ll_files:
+            intree_path, fname_with_hash = os.path.split( archive_fnpath[cut_fnpath:] )
+            if True == isLink:
+                pass ## do links later
+            else:
+                hash = fname_with_hash[:32]
+                fname = fname_with_hash[33:]
+                repofnpath = repopath + os.sep + FILE_ARCHIVE_NAME + os.sep + hash[0] + os.sep + hash[1] + os.sep + hash
+                if '' == intree_path:
+                    itp = ''
+                else:
+                    itp = intree_path + os.sep
+                restorefnpath = restorepath + os.sep + itp + fname 
+                shutil.copy(repofnpath, restorefnpath)
+    
+    def action_copy( self ):
+        archpath, newarchpath, repotree, repotree_fullpath = get_and_normalize_paths( self.argd )
+        print "[1] archpath =", archpath
+        print "[2] newarchpath =", newarchpath
+        print "[3] repotree =", repotree
+        print "[4] repotree_fullpath =", repotree_fullpath
+        if not os.path.exists(archpath):
+            raise Exception("the archive '%s' does not exist." % archpath)
+        if os.path.exists(newarchpath):
+            raise Exception("the new designated archive '%s' already exist." % newarchpath)
+        oldpool = archpath + os.sep + FILE_ARCHIVE_NAME
+        newpool = newarchpath + os.sep + FILE_ARCHIVE_NAME
+        print "[5] oldpool =", oldpool
+        print "[6] newpool =", newpool
+        os.mkdir(newarchpath,DIRPERMS)
+        shutil.copytree(oldpool, newpool)
+    
 def run( argd ):
     action = argd['action']
+    actions = Actions( argd )
     if 'ARCHIVE' == action:
-        action_archive( argd )
+        actions.action_archive()
     elif 'RESTORE' == action:
-        action_restore( argd )
+        actions.action_restore()
+    elif 'COPY' == action:
+        actions.action_copy()
     elif 'CULL' == action:
         print "Action: 'CULL' is not implemented."
     else:
@@ -188,9 +222,12 @@ def run( argd ):
 
 def usage( argd ):
     msg = """
+NOTE: This version is totally hosed. I've torn it up, and am making needed
+improvements.
+    
 USE: nodup_archiving OPTIONS ACTION
 
-Version 0.21 (2012-07-08)
+Version 0.22 (2012-07-31)
 
 Synopsis: an efficient and simple backup/archiving solution for directory
 trees in which there may be file duplication.  More than one directory
@@ -247,7 +284,12 @@ ACTION:
     RESTORE: restore the archived directory structure designated with
         the -r option from the archive repository designated by the -b
         option to the directory designated by the -d option.
-        
+
+    COPY: ***** IMPLEMENTATION IN PROGRESS *****
+        copy the archive with hard links intact from the archive
+        designated with the -b option to the directory designated by
+        the -d option.
+
     CULL: **** NOTE: this action not yet implemented *****
         cull out a archived directory tree within the repository
         as designated by the -r option and remove the archived
@@ -299,7 +341,8 @@ def main():
     run( argd )
 
 if __name__ == '__main__':
-    try:
-        main()
-    except Exception, ex:
-        print "Error:",ex
+    main()
+#    try:
+#        main()
+#    except Exception, ex:
+#        print "Error:",ex
