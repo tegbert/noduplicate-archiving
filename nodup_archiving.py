@@ -35,11 +35,18 @@ def chomp_right( s ):
         s = s[:-1]
     return s
 
-def gzip_file():
-    pass
-
-def gunzip_file():
-    pass
+def get_file_md5( fnpath ):
+    m = hashlib.md5()
+    fin = open(fnpath,'rb')
+    while True:
+        buf = fin.read( BUFSZ )
+        if 0 == len(buf):
+            break
+        else:
+            m.update( buf )
+    fin.close()
+    hash = m.hexdigest()
+    return hash
 
 def walk_dir( base_dirpath ):
     base_dirpath = chomp_right( base_dirpath )
@@ -66,18 +73,6 @@ def walk_dir( base_dirpath ):
                 lpath = ''
             ll_files.append( (flag_link, lpath, fpath) )
     return base_dirpath, ll_dirs, ll_files
-
-def get_file_md5( fnpath ):
-    m = hashlib.md5()
-    fin = open(fnpath,'rb')
-    while True:
-        buf = fin.read( BUFSZ )
-        if 0 == len(buf):
-            break
-        else:
-            m.update( buf )
-    hash = m.hexdigest()
-    return hash
 
 def get_and_normalize_paths( argd ):
     if None == argd['repopath']:
