@@ -184,23 +184,6 @@ class Actions:
                 restorefnpath = restorepath + os.sep + itp + fname 
                 shutil.copy(repofnpath, restorefnpath)
     
-    def action_copy( self ):
-        archpath, newarchpath, repotree, repotree_fullpath = get_and_normalize_paths( self.argd )
-        print "[1] archpath =", archpath
-        print "[2] newarchpath =", newarchpath
-        print "[3] repotree =", repotree
-        print "[4] repotree_fullpath =", repotree_fullpath
-        if not os.path.exists(archpath):
-            raise Exception("the archive '%s' does not exist." % archpath)
-        if os.path.exists(newarchpath):
-            raise Exception("the new designated archive '%s' already exist." % newarchpath)
-        oldpool = archpath + os.sep + FILE_ARCHIVE_NAME
-        newpool = newarchpath + os.sep + FILE_ARCHIVE_NAME
-        print "[5] oldpool =", oldpool
-        print "[6] newpool =", newpool
-        os.mkdir(newarchpath,DIRPERMS)
-        shutil.copytree(oldpool, newpool)
-    
 def run( argd ):
     action = argd['action']
     actions = Actions( argd )
@@ -217,12 +200,9 @@ def run( argd ):
 
 def usage( argd ):
     msg = """
-NOTE: This version is totally hosed. I've torn it up, and am making needed
-improvements.
-    
 USE: nodup_archiving OPTIONS ACTION
 
-Version 0.22 (2012-07-31)
+Version 0.7 (2012-11-03)
 
 Synopsis: an efficient and simple backup/archiving solution for directory
 trees in which there may be file duplication.  More than one directory
@@ -256,13 +236,6 @@ OPTIONS:
         Ignore symbolic links, to both directories and files. The
         default is to preserve symbolic links.
 
-    -H  
-        ***** NOTE: this option is not yet implemented *****
-        During a RESTORE of an archived directory tree, duplicate files
-        within the repository will be restored as hard links after the
-        initial first copy is restored. This option is ignored in all
-        actions other than RESTORE.
-
 ACTION:
 
     <ActionToBePerformed - required>. May be one of the following (not
@@ -270,27 +243,15 @@ ACTION:
 
     NONE: the default. No action taken.
 
-    ARCHIVE: archive the directory provided with the -d option to the
-        archive repository designated with the -b option, into the
-        tree designated by the -r option. If the -r option is not
-        given, the archive directory name will be the same as the
-        directory being archived.
+    ARCHIVE: archive the directory designated with the -d option to
+        the archive repository designated with the -b option, into
+        the tree designated by the -r option. If the -r option is
+        not given, the archive directory name will be the same as
+        the directory being archived.
 
     RESTORE: restore the archived directory structure designated with
         the -r option from the archive repository designated by the -b
         option to the directory designated by the -d option.
-
-    COPY: **** NOTE: this action is not yet implemented *****
-        copy the archive with hard links intact from the archive
-        designated with the -b option to the directory designated by
-        the -d option.
-
-    CULL: **** NOTE: this action is not yet implemented *****
-        cull out a archived directory tree within the repository
-        as designated by the -r option and remove the archived
-        files that are not pointed to by other trees within the
-        repository. If the -r option is not given, simply remove
-        the unreferenced files.
 """
     print msg % argd
     sys.exit(0)
