@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##
-##    nodups_archiving.py - archiving that eliminates duplicate files
+##    nodups_archiving.py - directory archiving that eliminates duplicate files
 ##    Copyright (C) 2012 Timothy P. Egbert.
 ##
 ##    This program is free software: you can redistribute it and/or modify
@@ -45,8 +45,8 @@ def get_file_md5( fnpath ):
         else:
             m.update( buf )
     fin.close()
-    hash = m.hexdigest()
-    return hash
+    hexhash = m.hexdigest()
+    return hexhash
 
 def walk_dir( base_dirpath ):
     base_dirpath = chomp_right( base_dirpath )
@@ -90,8 +90,8 @@ def get_and_normalize_paths( argd ):
     return repopath, toarchpath, repotree, repotree_fullpath
 
 class Actions:
-
-    def __init__(self, argd):
+    
+    def __init__(self, argd=None):
         self.argd = argd
 
     def action_new( self ):
@@ -139,7 +139,7 @@ class Actions:
                 try:
                     fhash = get_file_md5( toarchivefnpath )
                 except IOError, ioe:
-                    print "bad file encountered and skipped: '%s'" % toarchivefnpath
+                    print "%s\nbad file encountered and skipped: '%s'" % (ioe.__repr__(),toarchivefnpath)
                     continue
                 archive_fnpath = repopath + os.sep + FILE_ARCHIVE_NAME
                 archive_fnpath += os.sep + fhash[0] + os.sep + fhash[1] + os.sep + fhash
@@ -280,12 +280,12 @@ ACTION:
         the -r option from the archive repository designated by the -b
         option to the directory designated by the -d option.
 
-    COPY: ***** IMPLEMENTATION IN PROGRESS *****
+    COPY: **** NOTE: this action is not yet implemented *****
         copy the archive with hard links intact from the archive
         designated with the -b option to the directory designated by
         the -d option.
 
-    CULL: **** NOTE: this action not yet implemented *****
+    CULL: **** NOTE: this action is not yet implemented *****
         cull out a archived directory tree within the repository
         as designated by the -r option and remove the archived
         files that are not pointed to by other trees within the
