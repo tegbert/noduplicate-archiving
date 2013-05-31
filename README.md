@@ -19,7 +19,7 @@ in a single archive. This is a recommended way to use this app in cases
 where directory trees to be archived are similar and contain some or 
 many of the same files.
 
-This version now comes with unit testin, and the app itself still comes 
+This version now comes with unit testing, and the app itself still comes 
 in only one file's worth of Python code.
 
 As of the 0.70 release, archving and restoration appear to be working 
